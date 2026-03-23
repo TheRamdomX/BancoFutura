@@ -1,0 +1,29 @@
+version: '3.8'
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    ports:
+      - "8000:8000"
+    command: start --log trace --user root --pass root memory
+
+  mcp-server:
+    build: ./mcp-server
+    environment:
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=root
+      - SURREAL_PASS=root
+      - SURREAL_NS=banco
+      - SURREAL_DB=futura
+    depends_on:
+      - surrealdb
+
+  frontend-app:
+    build: ./banco-futura-app
+    ports:
+      - "8081:8081"
+    environment:
+      - EXPO_CLI_ALLOW_UNAUTHORIZED_TUNNEL=true
+    # Usar network host mode o no exponer vía ngrok si falla constantemente, pero mantendremos la red docker y usaremos HOST
+    depends_on:
+      - surrealdb
+      - mcp-server
