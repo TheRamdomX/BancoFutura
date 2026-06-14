@@ -1,0 +1,26 @@
+{
+  "name": "banco-futura-app",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "expo": "~44.0.0",
+    "react": "17.0.2",
+    "react-dom": "17.0.2",
+    "react-native": "https://github.com/expo/react-native/archive/sdk-44.0.0.tar.gz",
+    "react-native-web": "0.17.1"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web"
+  },
+  "eslintConfig": {
+    "extends": "expo-app"
+  },
+  "babel": {
+    "presets": [
+      "babel-preset-expo"
+    ]
+  }
+}

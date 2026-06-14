@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "jsx": "react-native",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["src/*"]
+    },
+    "strict": true
+  }
+}

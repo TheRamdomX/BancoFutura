@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { subscribeToBalance } from '../services/surrealLive';
+import { initSurreal, subscribeToBalance } from '../services/surrealLive';
 
 export default function DashboardScreen() {
   const [balance, setBalance] = useState<number>(0);
 
   useEffect(() => {
-    subscribeToBalance('user_1', (newBalance) => setBalance(newBalance));
+    // Ensuring it waits until the db is initialized (simplification for safety)
+    setTimeout(() => {
+      subscribeToBalance('user_1', (newBalance) => setBalance(newBalance));
+    }, 1000);
   }, []);
 
   return (

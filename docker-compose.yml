@@ -8,6 +8,10 @@ services:
 
   mcp-server:
     build: ./mcp-server
+    stdin_open: true
+    tty: true
+    ports:
+      - "8002:8002"
     environment:
       - SURREAL_URL=ws://surrealdb:8000/rpc
       - SURREAL_USER=root

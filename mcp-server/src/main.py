@@ -1,13 +1,28 @@
 import asyncio
 import os
 from surrealdb import Surreal
-from mcp.server.stdio import stdio_server
-from mcp.server.models import InitializationOptions
+from mcp.server.sse import SseServerTransport
 import mcp.types as types
 from mcp.server import Server
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.requests import Request
 
 # Initialize Server
 server = Server("BancoFutura MCP")
+
+# Configurar FastAPI
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Para dev
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+sse_transport: SseServerTransport | None = None
 
 # Set up SurrealDB client
 db = Surreal("ws://127.0.0.1:8000/rpc") # Will be overridden by connect_db logic
@@ -27,6 +42,25 @@ async def connect_db():
             database=os.environ.get("SURREAL_DB", "futura")
         )
         print("Connected to SurrealDB")
+        
+        # Automatizar la inicializacion del schema
+        schema_query = """
+        DEFINE TABLE account SCHEMALESS;
+        DEFINE TABLE transaction SCHEMALESS;
+        DEFINE TABLE ui_state SCHEMALESS;
+
+        CREATE account:user_1 SET balance = 100000, user = 'user_1';
+        CREATE account:user_2 SET balance = 50000, user = 'user_2';
+
+        CREATE ui_state:current SET active_screen = 'DashboardScreen';
+        """
+        # Intentar inicializar datos si no existen
+        try:
+            await db.query(schema_query)
+            print("Schema initialized")
+        except Exception as query_err:
+            print("Schema possibly already initialized or error: ", query_err)
+            
     except Exception as e:
         print(f"Failed to connect to SurrealDB: {e}")
 
@@ -129,17 +163,37 @@ async def handle_call_tool(
     else:
         raise ValueError(f"Unknown tool: {name}")
 
-async def main():
-    print("Starting MCP Server with Python...")
+@app.on_event("startup")
+async def startup_event():
+    print("Starting APP and DB connect...")
     await connect_db()
-    
-    # Run server via stdio transport
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(
-            read_stream,
-            write_stream,
-            server.create_initialization_options()
-        )
 
-if __name__ == "__main__":
-    asyncio.run(main())
+@app.get("/sse")
+async def sse_route(request: Request):
+    """Establece la conexión SSE con el cliente HTTP de React Native Web."""
+    global sse_transport
+    async with SseServerTransport("/messages") as transport:
+        sse_transport = transport
+        
+        # Iniciar el servidor persistente vinculado al transport SSE asincrónico 
+        # sin bloquear la vista gracias al background task run
+        task = asyncio.create_task(
+            server.run(
+                transport.read_stream,
+                transport.write_stream,
+                server.create_initialization_options()
+            )
+        )
+        # Se cede el control a la respuesta Starlette del SSe transport
+        response = await transport.handle_sse(request)
+        return response
+
+@app.post("/messages")
+async def messages_route(request: Request):
+    """Recibe los flujos de mensajería (tool calls) y los enruta al transport."""
+    global sse_transport
+    if sse_transport is None:
+        return {"error": "SSE not initialized"}
+    
+    await sse_transport.handle_post_message(request)
+    return {"status": "ok"}
