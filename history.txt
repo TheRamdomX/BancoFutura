@@ -1,0 +1,6 @@
+SELECT id, username, full_name FROM user;
+SELECT id, owner.full_name AS titular, balance, type FROM account;
+SELECT id, last_four, type, status, account.owner.full_name AS titular FROM card;
+SELECT id, from_account.owner.full_name AS origen, to_account.owner.full_name AS destino, amount, description FROM transaction;
+RETURN crypto::argon2::generate('x');
+INFO FOR TABLE kb_chunk;

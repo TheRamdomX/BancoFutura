@@ -1,38 +1,112 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from "react";
+import { Animated, Easing, Pressable, Text, View, StyleSheet } from "react-native";
+import type { OrbState } from "../services/agentSession";
 
-export default function AgentOrb({ state }: { state: 'idle' | 'listening' | 'thinking' | 'speaking' }) {
-  // Determinamos el color en base al estado simulando la animación global
-  const getColor = () => {
-    switch (state) {
-      case 'listening': return '#2196F3'; // Azul
-      case 'thinking': return '#FFC107'; // Amarillo
-      case 'speaking': return '#4CAF50'; // Verde
-      default: return '#9E9E9E'; // Gris (idle)
+const ORB_COLOR: Record<OrbState, string> = {
+  idle: "#1A1F36",
+  thinking: "#F5A623",
+  working: "#0B5FFF",
+  speaking: "#2E7D32",
+};
+
+const ORB_ICON: Record<OrbState, string> = {
+  idle: "💬",
+  thinking: "🤔",
+  working: "⚙️",
+  speaking: "🔊",
+};
+
+/**
+ * Burbuja flotante del agente (estado colapsado del chat). Pulsa cuando el
+ * agente piensa/trabaja/habla; al tocarla se expande el panel de chat.
+ */
+export default function AgentOrb({
+  state,
+  activity,
+  onPress,
+}: {
+  state: OrbState;
+  activity: string | null;
+  onPress: () => void;
+}) {
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const active = state !== "idle";
+    if (!active) {
+      pulse.stopAnimation(() => pulse.setValue(1));
+      return;
     }
-  };
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 1.18,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulse, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [state, pulse]);
 
   return (
-    <View style={[styles.container, { backgroundColor: getColor() }]}>
-      <Text style={styles.text}>{state.toUpperCase()}</Text>
+    <View style={styles.wrap} pointerEvents="box-none">
+      {activity ? (
+        <View style={styles.activityPill}>
+          <Text style={styles.activityText} numberOfLines={1}>
+            {activity}
+          </Text>
+        </View>
+      ) : null}
+      <Pressable onPress={onPress}>
+        <Animated.View
+          style={[
+            styles.orb,
+            { backgroundColor: ORB_COLOR[state], transform: [{ scale: pulse }] },
+          ]}
+        >
+          <Text style={styles.icon}>{ORB_ICON[state]}</Text>
+        </Animated.View>
+      </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 15,
-    borderRadius: 50,
-    position: 'absolute',
-    bottom: 30,
-    right: 30,
-    elevation: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    minWidth: 100,
+  wrap: {
+    position: "absolute",
+    bottom: 28,
+    right: 24,
+    alignItems: "flex-end",
   },
-  text: {
-    color: '#fff',
-    fontWeight: 'bold',
-  }
+  orb: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+  },
+  icon: { fontSize: 26 },
+  activityPill: {
+    backgroundColor: "#1A1F36",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 18,
+    marginBottom: 10,
+    maxWidth: 240,
+  },
+  activityText: { color: "#fff", fontSize: 13, fontWeight: "600" },
 });

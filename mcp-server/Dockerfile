@@ -1,16 +1,13 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
 
-# Instalar dependencias necesarias de python
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY src/ src/
 
-# Copiamos todo el código fuente del MCP
-COPY src ./src
-
-# Exponer el puerto para FastAPI
+# Por defecto se ejecuta el orquestador + WebSocket bridge (Fase 7) en el
+# puerto 8002. El MCP server stdio (src.server) se usa de forma aislada para
+# pruebas con MCP Inspector:  python -m src.server
 EXPOSE 8002
-
-# Iniciamos el servidor con uvicorn en el puerto 8002
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8002"]
+CMD ["uvicorn", "src.orchestrator.ws_bridge:app", "--host", "0.0.0.0", "--port", "8002"]

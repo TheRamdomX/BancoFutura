@@ -1,15 +1,32 @@
-version: '3.8'
 services:
   surrealdb:
     image: surrealdb/surrealdb:latest
     ports:
       - "8000:8000"
     command: start --log trace --user root --pass root memory
+    healthcheck:
+      test: ["CMD", "/surreal", "isready", "--conn", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Aplica schema.surql una vez que SurrealDB está sano (la DB es 'memory',
+  # así que se reimporta en cada arranque).
+  schema-init:
+    image: surrealdb/surrealdb:latest
+    depends_on:
+      surrealdb:
+        condition: service_healthy
+    volumes:
+      - ./schema.surql:/schema.surql:ro
+    entrypoint: ["/surreal"]
+    command: >
+      import --conn http://surrealdb:8000 --user root --pass root
+      --ns banco --db futura /schema.surql
+    restart: "no"
 
   mcp-server:
     build: ./mcp-server
-    stdin_open: true
-    tty: true
     ports:
       - "8002:8002"
     environment:
@@ -18,16 +35,37 @@ services:
       - SURREAL_PASS=root
       - SURREAL_NS=banco
       - SURREAL_DB=futura
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash}
+      - INTENT_CLASSIFIER_URL=http://intent-classifier:8003
     depends_on:
-      - surrealdb
+      surrealdb:
+        condition: service_healthy
+
+  intent-classifier:
+    build: ./intent-classifier
+    ports:
+      - "8003:8003"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    # Sin modelo entrenado usa el clasificador por palabras clave de respaldo.
 
   frontend-app:
     build: ./banco-futura-app
     ports:
       - "8081:8081"
     environment:
+      # IMPORTANTE: estas URLs corren en el NAVEGADOR del usuario (Expo web),
+      # no dentro de la red de Docker → deben apuntar a localhost del host.
+      - EXPO_PUBLIC_SURREAL_URL=ws://localhost:8000/rpc
+      - EXPO_PUBLIC_WS_URL=ws://localhost:8002/ws/chat
       - EXPO_CLI_ALLOW_UNAUTHORIZED_TUNNEL=true
-    # Usar network host mode o no exponer vía ngrok si falla constantemente, pero mantendremos la red docker y usaremos HOST
     depends_on:
       - surrealdb
       - mcp-server
+      - intent-classifier
+
+# NOTA: la capa RAG (Fase 4) requiere ingestar la base de conocimiento con
+# embeddings: `docker compose exec mcp-server python -m src.rag.ingest`
+# (necesita GEMINI_API_KEY válida). El clasificador (Fase 5) usa un respaldo por
+# palabras clave hasta que se entrene el modelo ML.

@@ -1,1 +1,24 @@
+# Secretos
 .env
+banco-futura-app/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+mcp-server/.venv/
+*.egg-info/
+
+# Node / Expo
+node_modules/
+.expo/
+dist/
+web-build/
+
+# Modelos / datasets entrenados
+intent-classifier/models/*.joblib
+intent-classifier/intent_dataset.json
+
+# Logs y artefactos
+build_log.txt
+ISSUES.md

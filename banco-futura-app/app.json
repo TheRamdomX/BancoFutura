@@ -1,0 +1,16 @@
+{
+  "expo": {
+    "name": "BancoFutura",
+    "slug": "banco-futura-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "web": {
+      "bundler": "metro"
+    },
+    "splash": {
+      "backgroundColor": "#0B5FFF"
+    }
+  }
+}
