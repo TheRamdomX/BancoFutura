@@ -8,11 +8,19 @@ Estrategia:
 - Si no, degrada a un clasificador por palabras clave (sin red), de modo que
   el servicio SIEMPRE responda y el orquestador pueda usarlo desde el día 1.
 """
+import logging
 import os
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
 
 from src.intent.keyword_classifier import classify_by_keywords
+
+# Logger que escribe a stdout → visible en `docker logs intent-classifier`.
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+log = logging.getLogger("intent.classifier")
 
 app = FastAPI(title="VoxBank Intent Classifier")
 
@@ -83,17 +91,29 @@ async def classify(text: str = Query(..., min_length=1)):
     if _load_ml():
         try:
             intent, conf, scores = _classify_ml(text)
+            _log_output(text, intent, conf, scores, method="ml")
             return ClassificationResult(
                 text=text, intent=intent, confidence=conf,
                 all_scores=scores, method="ml",
             )
         except Exception as e:
-            print(f"[classifier] fallo ML, uso keywords: {e}")
+            log.warning("fallo ML, degrado a keywords: %s", e)
 
     intent, conf, scores = classify_by_keywords(text)
+    _log_output(text, intent, conf, scores, method="keyword")
     return ClassificationResult(
         text=text, intent=intent, confidence=conf,
         all_scores=scores, method="keyword",
+    )
+
+
+def _log_output(text: str, intent: str, conf: float, scores: dict, method: str):
+    """Imprime el output de la red (softmax por clase) a la consola de Docker."""
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    dist = "  ".join(f"{name}={p:.3f}" for name, p in ranked)
+    log.info(
+        '[%s] "%s" -> %s (conf=%.3f) | %s',
+        method, text, intent, conf, dist,
     )
 
 

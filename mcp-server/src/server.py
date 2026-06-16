@@ -10,7 +10,7 @@ from mcp.types import Tool, TextContent
 
 from src.tools.balance import get_balance
 from src.tools.transfer import make_transfer
-from src.tools.cards import get_card_status, block_card
+from src.tools.cards import get_card_status, block_card, unblock_card
 from src.tools.transactions import get_transactions
 from src.tools.knowledge import search_knowledge_base
 
@@ -100,6 +100,25 @@ TOOLS = [
         },
     ),
     Tool(
+        name="unblock_card",
+        description=(
+            "Reactiva (desbloquea) una tarjeta previamente bloqueada. "
+            "Requiere confirmación del usuario."
+        ),
+        inputSchema={
+            "type": "object",
+            "properties": {
+                "card_id": {"type": "string", "description": "ID de la tarjeta"},
+                "reason": {
+                    "type": "string",
+                    "description": "Motivo del desbloqueo",
+                    "default": "user_request",
+                },
+            },
+            "required": ["card_id"],
+        },
+    ),
+    Tool(
         name="get_transactions",
         description="Lista las últimas transacciones de una cuenta.",
         inputSchema={
@@ -151,6 +170,7 @@ async def call_tool(name: str, arguments: dict):
         "get_balance": get_balance,
         "get_card_status": get_card_status,
         "block_card": block_card,
+        "unblock_card": unblock_card,
         "make_transfer": make_transfer,
         "get_transactions": get_transactions,
         "search_knowledge_base": search_knowledge_base,

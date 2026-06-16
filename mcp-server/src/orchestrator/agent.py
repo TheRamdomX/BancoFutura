@@ -12,7 +12,7 @@ from google.genai import types
 # (en producción se llamarían vía MCP protocol; aquí se invocan directamente)
 from src.tools.balance import get_balance
 from src.tools.transfer import make_transfer
-from src.tools.cards import get_card_status, block_card
+from src.tools.cards import get_card_status, block_card, unblock_card
 from src.tools.transactions import get_transactions
 from src.tools.knowledge import search_knowledge_base
 from src.orchestrator.tool_definitions import TOOL_DECLARATIONS
@@ -60,6 +60,7 @@ TOOL_HANDLERS = {
     "make_transfer": make_transfer,
     "get_card_status": get_card_status,
     "block_card": block_card,
+    "unblock_card": unblock_card,
     "get_transactions": get_transactions,
     "search_knowledge_base": search_knowledge_base,
 }
@@ -85,7 +86,7 @@ async def classify_intent(text: str) -> dict:
 
 
 # Tools sensibles que requieren validación de propiedad cuando hay usuario.
-SENSITIVE_TOOLS = {"make_transfer", "block_card"}
+SENSITIVE_TOOLS = {"make_transfer", "block_card", "unblock_card"}
 
 
 async def execute_tool_call(function_call, actor_user_id: str | None = None) -> str:

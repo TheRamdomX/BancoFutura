@@ -1,5 +1,5 @@
 """
-Tools: get_card_status, block_card
+Tools: get_card_status, block_card, unblock_card
 """
 from src.db import Database, first_row
 from src.audit import log_action
@@ -67,3 +67,37 @@ async def block_card(card_id: str, reason: str = "user_request", actor_user_id: 
         success=True,
     )
     return {"card_id": card_id, "new_status": "blocked", "reason": reason}
+
+
+async def unblock_card(card_id: str, reason: str = "user_request", actor_user_id: str | None = None) -> dict:
+    db = await Database.get()
+
+    # Si se actúa en nombre de un usuario, validar propiedad de la tarjeta
+    if actor_user_id:
+        await validate_card_ownership(actor_user_id, card_id)
+
+    # Solo se reactiva una tarjeta que esté bloqueada
+    current = await get_card_status(card_id)
+    if current["status"] == "active":
+        raise ValueError("La tarjeta ya está activa")
+    if current["status"] in ("expired", "cancelled"):
+        raise ValueError(
+            f"No se puede reactivar una tarjeta con estado: {current['status']}"
+        )
+
+    await db.query(
+        """UPDATE type::thing('card', $id) SET
+               status = 'active',
+               blocked_at = NONE,
+               blocked_by = NONE;""",
+        {"id": card_id.replace("card:", "")},
+    )
+
+    await log_action(
+        actor="agent", action="unblock",
+        tool_name="unblock_card",
+        parameters={"card_id": card_id, "reason": reason},
+        result={"new_status": "active"},
+        success=True,
+    )
+    return {"card_id": card_id, "new_status": "active", "reason": reason}

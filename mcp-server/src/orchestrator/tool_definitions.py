@@ -79,6 +79,21 @@ TOOL_DECLARATIONS = [
         },
     },
     {
+        "name": "unblock_card",
+        "description": (
+            "Reactiva (desbloquea) una tarjeta previamente bloqueada. "
+            "SIEMPRE confirmar con el usuario antes de ejecutar."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "card_id": {"type": "string"},
+                "reason": {"type": "string"},
+            },
+            "required": ["card_id"],
+        },
+    },
+    {
         "name": "search_knowledge_base",
         "description": (
             "Busca información en la base de conocimiento del banco: "
