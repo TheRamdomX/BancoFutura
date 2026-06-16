@@ -46,12 +46,21 @@ def _load_ml():
 def _classify_ml(text: str) -> tuple[str, float, dict]:
     import numpy as np
     from google.genai import types
+    # IMPORTANTE: debe coincidir con el embedding usado al entrenar
+    # (gemini-embedding-001 @ 768 dims, L2-normalizado).
     resp = _genai_client.models.embed_content(
-        model=os.getenv("GEMINI_EMBED_MODEL", "text-embedding-004"),
+        model=os.getenv("GEMINI_EMBED_MODEL", "gemini-embedding-001"),
         contents=text,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_QUERY"),
+        config=types.EmbedContentConfig(
+            task_type="RETRIEVAL_QUERY",
+            output_dimensionality=int(os.getenv("GEMINI_EMBED_DIM", "768")),
+        ),
     )
-    embedding = np.array(resp.embeddings[0].values).reshape(1, -1)
+    v = np.array(resp.embeddings[0].values, dtype=np.float32)
+    norm = np.linalg.norm(v)
+    if norm > 0:
+        v = v / norm
+    embedding = v.reshape(1, -1)
     probs = _clf.predict_proba(embedding)[0]
     idx = int(np.argmax(probs))
     intent = _le.inverse_transform([idx])[0]

@@ -18,6 +18,7 @@ web-build/
 # Modelos / datasets entrenados
 intent-classifier/models/*.joblib
 intent-classifier/intent_dataset.json
+intent-classifier/.embed_cache/
 
 # Logs y artefactos
 build_log.txt
