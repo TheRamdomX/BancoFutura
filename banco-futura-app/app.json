@@ -4,13 +4,13 @@
     "slug": "banco-futura-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "web": {
       "bundler": "metro"
     },
     "splash": {
-      "backgroundColor": "#0B5FFF"
+      "backgroundColor": "#0A1221"
     }
   }
 }

@@ -82,8 +82,9 @@ export default function AgentOrb({
 
 const styles = StyleSheet.create({
   wrap: {
+    // Elevado para no quedar tapado por la barra de navegación inferior (64px).
     position: "absolute",
-    bottom: 28,
+    bottom: 84,
     right: 24,
     alignItems: "flex-end",
   },

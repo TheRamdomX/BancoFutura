@@ -136,6 +136,7 @@ export default function AgentDock() {
           <TextInput
             style={styles.input}
             placeholder="Escribe un mensaje…"
+            placeholderTextColor="#64748B"
             value={input}
             onChangeText={setInput}
             onSubmitEditing={handleSend}
@@ -154,33 +155,35 @@ const PANEL_WIDTH = 430;
 
 // Estilos del markdown para los mensajes del agente (paleta de la app).
 const mdStyles = StyleSheet.create({
-  body: { color: "#1A1F36", fontSize: 14, lineHeight: 20 },
-  strong: { fontWeight: "700" },
+  body: { color: "#E2E8F0", fontSize: 14, lineHeight: 20 },
+  strong: { fontWeight: "700", color: "#fff" },
   em: { fontStyle: "italic" },
   bullet_list: { marginVertical: 2 },
   ordered_list: { marginVertical: 2 },
   list_item: { marginVertical: 1 },
-  heading1: { fontSize: 18, fontWeight: "800", marginVertical: 4 },
-  heading2: { fontSize: 16, fontWeight: "800", marginVertical: 4 },
-  heading3: { fontSize: 15, fontWeight: "700", marginVertical: 3 },
-  link: { color: "#0B5FFF" },
+  heading1: { fontSize: 18, fontWeight: "800", marginVertical: 4, color: "#fff" },
+  heading2: { fontSize: 16, fontWeight: "800", marginVertical: 4, color: "#fff" },
+  heading3: { fontSize: 15, fontWeight: "700", marginVertical: 3, color: "#fff" },
+  link: { color: "#3B82F6" },
   code_inline: {
-    backgroundColor: "#E3E9F2",
-    color: "#1A1F36",
+    backgroundColor: "rgba(255,255,255,0.10)",
+    color: "#E2E8F0",
     borderRadius: 4,
     paddingHorizontal: 4,
     fontFamily: "monospace",
     fontSize: 13,
   },
   fence: {
-    backgroundColor: "#E3E9F2",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: "#E2E8F0",
     borderRadius: 8,
     padding: 8,
     fontFamily: "monospace",
     fontSize: 13,
   },
   code_block: {
-    backgroundColor: "#E3E9F2",
+    backgroundColor: "rgba(255,255,255,0.08)",
+    color: "#E2E8F0",
     borderRadius: 8,
     padding: 8,
     fontFamily: "monospace",
@@ -190,9 +193,10 @@ const mdStyles = StyleSheet.create({
 
 const styles = StyleSheet.create({
   panelWrap: {
+    // Elevado para despejar la barra de navegación inferior (64px).
     position: "absolute",
     right: 24,
-    bottom: 28,
+    bottom: 84,
     alignItems: "flex-end",
   },
   panel: {
@@ -200,7 +204,9 @@ const styles = StyleSheet.create({
     maxWidth: "92%",
     height: 460,
     maxHeight: "78%",
-    backgroundColor: "#fff",
+    backgroundColor: "#111A2E",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
     borderRadius: 18,
     marginBottom: 12,
     padding: 12,
@@ -216,32 +222,34 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F8",
+    borderBottomColor: "rgba(255,255,255,0.08)",
   },
   headerLeft: { flexDirection: "row", alignItems: "center" },
   dot: { width: 9, height: 9, borderRadius: 5, marginRight: 8 },
-  headerTitle: { fontSize: 16, fontWeight: "800", color: "#1A1F36" },
-  close: { fontSize: 16, color: "#666", paddingHorizontal: 4 },
+  headerTitle: { fontSize: 16, fontWeight: "800", color: "#fff" },
+  close: { fontSize: 16, color: "#94A3B8", paddingHorizontal: 4 },
   list: { flex: 1 },
   bubble: { padding: 10, borderRadius: 12, marginVertical: 4, maxWidth: "85%" },
-  user: { backgroundColor: "#0B5FFF", alignSelf: "flex-end" },
-  agent: { backgroundColor: "#EEF2F8", alignSelf: "flex-start" },
+  user: { backgroundColor: "#2563EB", alignSelf: "flex-end" },
+  agent: { backgroundColor: "rgba(255,255,255,0.06)", alignSelf: "flex-start" },
   userText: { color: "#fff" },
-  agentText: { color: "#1A1F36" },
+  agentText: { color: "#fff" },
   activityRow: { alignSelf: "center", marginVertical: 4 },
-  activityText: { color: "#0B5FFF", fontSize: 12, fontStyle: "italic" },
-  hint: { color: "#999", textAlign: "center", marginTop: 28, paddingHorizontal: 12 },
+  activityText: { color: "#3B82F6", fontSize: 12, fontStyle: "italic" },
+  hint: { color: "#64748B", textAlign: "center", marginTop: 28, paddingHorizontal: 12 },
   inputRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
   input: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#ddd",
+    borderColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.05)",
+    color: "#fff",
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
   sendBtn: {
-    backgroundColor: "#0B5FFF",
+    backgroundColor: "#2563EB",
     borderRadius: 20,
     width: 40,
     height: 40,
