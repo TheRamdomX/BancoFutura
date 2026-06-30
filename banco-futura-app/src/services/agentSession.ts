@@ -81,7 +81,6 @@ const CHUNK_MS = 400;
 let speakTimer: ReturnType<typeof setTimeout> | null = null;
 let currentSound: Audio.Sound | null = null;
 let streamingFlag = false;
-let sendingPaused = false;
 let pendingTranscript = "";
 let chunkLoopHandle: ReturnType<typeof setTimeout> | null = null;
 
@@ -99,11 +98,9 @@ async function playAudioBase64(b64: string) {
       const blob = new Blob([bytes], { type: "audio/wav" });
       const url = URL.createObjectURL(blob);
       const audio = new window.Audio(url);
-      sendingPaused = true;
       useAgentSession.setState({ playing: true, orb: "speaking", voiceTurn: "speaking" });
       audio.onended = () => {
         URL.revokeObjectURL(url);
-        sendingPaused = false;
         useAgentSession.setState({ playing: false, orb: "idle", voiceTurn: "listening" });
       };
       await audio.play();
@@ -128,7 +125,7 @@ async function playAudioBase64(b64: string) {
       if (status.isLoaded && status.didJustFinish) {
         sound.unloadAsync().catch(() => {});
         currentSound = null;
-        useAgentSession.setState({ playing: false, orb: "idle" });
+        useAgentSession.setState({ playing: false, orb: "idle", voiceTurn: "listening" });
       }
     });
     useAgentSession.setState({ playing: true, orb: "speaking" });
@@ -197,7 +194,7 @@ function startWebPCMCapture(ws: WebSocket) {
 
       let chunkN = 0;
       webProcessorNode.onaudioprocess = (e) => {
-        if (!streamingFlag || sendingPaused || ws.readyState !== WebSocket.OPEN) return;
+        if (!streamingFlag || useAgentSession.getState().voiceTurn !== "listening" || ws.readyState !== WebSocket.OPEN) return;
         const input = e.inputBuffer.getChannelData(0);
         const pcm16 = downsampleBuffer(input, actualRate, TARGET_SAMPLE_RATE);
         const bytes = new Uint8Array(pcm16.buffer);
@@ -515,10 +512,13 @@ export const useAgentSession = create<AgentSession>((set, get) => ({
       if (data.type === "turn_complete") {
         const leftover = pendingTranscript.trim();
         pendingTranscript = "";
+        const isPlaying = get().playing;
         set((s) => ({
           processing: false,
           activity: null,
           actionTick: s.actionTick + 1,
+          voiceTurn: isPlaying ? s.voiceTurn : "listening",
+          orb: isPlaying ? s.orb : "idle",
           messages: leftover
             ? [...s.messages, { role: "agent", text: leftover }]
             : s.messages,
@@ -619,6 +619,10 @@ export const useAgentSession = create<AgentSession>((set, get) => ({
         while (streamingFlag) {
           const ws2 = useAgentSession.getState().voiceSocket;
           if (!ws2 || ws2.readyState !== WebSocket.OPEN) break;
+          if (useAgentSession.getState().voiceTurn !== "listening") {
+            await new Promise((r) => setTimeout(r, 100));
+            continue;
+          }
           const b64 = await recordOneChunk();
           if (b64 && streamingFlag) sendChunk(ws2, b64);
         }
