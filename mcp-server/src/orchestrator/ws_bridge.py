@@ -53,6 +53,32 @@ ACTION_TO_SCREEN = {
     "search_knowledge_base": "DashboardScreen",
 }
 
+# Sesiones de conversación compartidas por usuario (persisten entre texto y voz)
+user_chat_sessions: dict = {}
+
+
+def extract_text_history(history: list, max_turns: int = 10) -> list[dict]:
+    """Extrae intercambios de texto plano del historial de ConversationSession."""
+    result = []
+    for content in history:
+        parts = content.parts or []
+        has_function = any(
+            getattr(p, "function_call", None) or getattr(p, "function_response", None)
+            for p in parts
+        )
+        if has_function:
+            continue
+        texts = [
+            p.text for p in parts
+            if getattr(p, "text", None) and not getattr(p, "thought", False)
+        ]
+        if texts:
+            result.append({
+                "role": "user" if content.role == "user" else "model",
+                "text": " ".join(texts),
+            })
+    return result[-max_turns * 2:]
+
 
 @app.get("/health")
 async def health():
@@ -188,7 +214,10 @@ async def websocket_chat(websocket: WebSocket, user_id: str):
     await log_action(actor=auth_user_id, action="login", tool_name="ws_auth", success=True)
 
     from src.orchestrator.agent import ConversationSession
-    session = ConversationSession(context)
+    session = user_chat_sessions.get(auth_user_id)
+    if not session:
+        session = ConversationSession(context)
+        user_chat_sessions[auth_user_id] = session
 
     try:
         while True:
@@ -306,6 +335,16 @@ async def websocket_voice(websocket: WebSocket, user_id: str):
                      tool_name="ws_voice", success=True)
 
     from src.orchestrator.voice_agent import VoiceLiveSession
+    from src.orchestrator.agent import ConversationSession
+
+    # Extraer historial previo del chat de texto para dárselo a la sesión de voz
+    prior_history = []
+    shared_session = user_chat_sessions.get(auth_user_id)
+    if shared_session:
+        prior_history = extract_text_history(shared_session.history)
+
+    voice_transcripts: list[dict] = []
+    pending_agent_text = ""
 
     ws_lock = asyncio.Lock()
     chunk_count = 0
@@ -321,12 +360,13 @@ async def websocket_voice(websocket: WebSocket, user_id: str):
 
     try:
         vlog.info("Abriendo VoiceLiveSession...")
-        async with VoiceLiveSession(context) as voice:
+        async with VoiceLiveSession(context, prior_history=prior_history) as voice:
             vlog.info("VoiceLiveSession abierta, enviando ready al cliente")
             await ws_send({"type": "ready"})
 
             # ── Task 2: Gemini -> Cliente ──────────────────
             async def gemini_loop():
+                nonlocal pending_agent_text
                 vlog.info("gemini_loop: iniciado, esperando eventos de Gemini...")
                 try:
                     async for event in voice.receive_stream():
@@ -340,10 +380,12 @@ async def websocket_voice(websocket: WebSocket, user_id: str):
                             await ws_send({"type": "audio", "data": b64})
 
                         elif etype == "transcript":
+                            pending_agent_text += event["text"]
                             vlog.info("gemini_loop: transcript: %s", event["text"][:100])
                             await ws_send({"type": "transcript", "text": event["text"]})
 
                         elif etype == "user_transcript":
+                            voice_transcripts.append({"role": "user", "text": event["text"]})
                             vlog.info("gemini_loop: user said: %s", event["text"][:100])
                             await ws_send({"type": "user_transcript", "text": event["text"]})
 
@@ -359,10 +401,16 @@ async def websocket_voice(websocket: WebSocket, user_id: str):
                             })
 
                         elif etype == "end_session":
+                            if pending_agent_text.strip():
+                                voice_transcripts.append({"role": "model", "text": pending_agent_text.strip()})
+                                pending_agent_text = ""
                             vlog.info("gemini_loop: END_SESSION")
                             await ws_send({"type": "end_session"})
 
                         elif etype == "turn_complete":
+                            if pending_agent_text.strip():
+                                voice_transcripts.append({"role": "model", "text": pending_agent_text.strip()})
+                                pending_agent_text = ""
                             vlog.info("gemini_loop: TURN_COMPLETE")
                             await ws_send({"type": "turn_complete"})
 
@@ -411,6 +459,24 @@ async def websocket_voice(websocket: WebSocket, user_id: str):
                     await gemini_task
                 except asyncio.CancelledError:
                     pass
+
+                # Inyectar transcripciones de voz en la sesión de texto compartida
+                if voice_transcripts:
+                    from google.genai import types as gtypes
+                    s = user_chat_sessions.get(auth_user_id)
+                    if not s:
+                        s = ConversationSession(context)
+                        user_chat_sessions[auth_user_id] = s
+                    for entry in voice_transcripts:
+                        s.history.append(
+                            gtypes.Content(
+                                role=entry["role"],
+                                parts=[gtypes.Part.from_text(text=entry["text"])],
+                            )
+                        )
+                    vlog.info("client_loop: %d turnos de voz inyectados al historial compartido",
+                              len(voice_transcripts))
+
                 vlog.info("client_loop: cleanup completo")
 
     except Exception as e:

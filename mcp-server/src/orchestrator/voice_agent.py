@@ -39,7 +39,7 @@ CONTEXTO DEL USUARIO:
 - Usuario: {user_name}
 - Cuentas: {user_accounts}
 - Tarjetas: {user_cards}
-"""
+{prior_conversation}"""
 
 END_SESSION_DECL = types.FunctionDeclaration(
     name="end_session",
@@ -48,8 +48,19 @@ END_SESSION_DECL = types.FunctionDeclaration(
 )
 
 
-def build_live_config(user_context: dict | None = None) -> types.LiveConnectConfig:
+def build_live_config(user_context: dict | None = None, prior_history: list[dict] | None = None) -> types.LiveConnectConfig:
     prompt = SYSTEM_PROMPT_VOICE
+
+    prior_conversation = ""
+    if prior_history:
+        prior_conversation = (
+            "\nHISTORIAL DE CONVERSACIÓN PREVIA (continúa esta conversación, "
+            "ya conoces al usuario y lo que han hablado):\n"
+        )
+        for entry in prior_history:
+            label = "Usuario" if entry["role"] == "user" else "VoxBank"
+            prior_conversation += f"{label}: {entry['text']}\n"
+
     if user_context:
         prompt = prompt.format(
             user_name=user_context.get("name", "Cliente"),
@@ -59,10 +70,12 @@ def build_live_config(user_context: dict | None = None) -> types.LiveConnectConf
             user_cards=json.dumps(
                 user_context.get("cards", []), ensure_ascii=False
             ),
+            prior_conversation=prior_conversation,
         )
     else:
         prompt = prompt.format(
-            user_name="Cliente", user_accounts="[]", user_cards="[]"
+            user_name="Cliente", user_accounts="[]", user_cards="[]",
+            prior_conversation=prior_conversation,
         )
 
     return types.LiveConnectConfig(
@@ -120,10 +133,10 @@ def pcm_to_wav(
 class VoiceLiveSession:
     """Sesion de voz Gemini Live con VAD automatico."""
 
-    def __init__(self, user_context: dict):
+    def __init__(self, user_context: dict, prior_history: list[dict] | None = None):
         self.user_context = user_context
         self.user_id = user_context.get("id")
-        self.config = build_live_config(user_context)
+        self.config = build_live_config(user_context, prior_history)
         self._ctx = None
         self._session = None
         log.info("VoiceLiveSession creada para user=%s", self.user_id)
