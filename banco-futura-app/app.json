@@ -11,6 +11,14 @@
     },
     "splash": {
       "backgroundColor": "#0A1221"
-    }
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "BancoFutura necesita acceso al microfono para el chat de voz con VoxBank."
+        }
+      ]
+    ]
   }
 }

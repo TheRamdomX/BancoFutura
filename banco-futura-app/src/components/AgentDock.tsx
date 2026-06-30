@@ -43,6 +43,11 @@ export default function AgentDock() {
     orb,
     activity,
     messages,
+    streaming,
+    startVoiceStream,
+    stopVoiceStream,
+    playing,
+    voiceTurn,
   } = useAgentSession();
 
   const [input, setInput] = React.useState("");
@@ -71,6 +76,14 @@ export default function AgentDock() {
     if (!t) return;
     send(t);
     setInput("");
+  }
+
+  async function handleMicPress() {
+    if (streaming) {
+      await stopVoiceStream();
+    } else {
+      await startVoiceStream();
+    }
   }
 
   // Colapsado: solo el orbe.
@@ -132,20 +145,61 @@ export default function AgentDock() {
 
         {processing && <ActivityIndicator color="#0B5FFF" style={{ marginVertical: 6 }} />}
 
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Escribe un mensaje…"
-            placeholderTextColor="#64748B"
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={handleSend}
-            editable={connected}
-          />
-          <Pressable style={styles.sendBtn} onPress={handleSend} disabled={!connected}>
-            <Text style={styles.sendText}>➤</Text>
-          </Pressable>
-        </View>
+        {streaming ? (
+          <View style={styles.inputRow}>
+            <View style={[
+              styles.recordingBar,
+              voiceTurn === "speaking" && styles.speakingBar,
+              voiceTurn === "thinking" && styles.thinkingBar,
+            ]}>
+              <Text style={[
+                styles.recordingDot,
+                voiceTurn === "speaking" && styles.speakingDot,
+                voiceTurn === "thinking" && styles.thinkingDot,
+              ]}>●</Text>
+              <Text style={[
+                styles.recordingLabel,
+                voiceTurn === "speaking" && styles.speakingLabel,
+                voiceTurn === "thinking" && styles.thinkingLabel,
+              ]}>
+                {voiceTurn === "speaking"
+                  ? "VoxBank está hablando…"
+                  : voiceTurn === "thinking"
+                  ? "Procesando…"
+                  : "Escuchando… habla con VoxBank"}
+              </Text>
+            </View>
+            <Pressable style={styles.stopBtn} onPress={handleMicPress}>
+              <Text style={styles.stopText}>⏹</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Escribe un mensaje…"
+              placeholderTextColor="#64748B"
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={handleSend}
+              editable={connected && !processing}
+            />
+            <Pressable
+              style={styles.micBtn}
+              onPress={handleMicPress}
+              disabled={!connected || processing}
+            >
+              <Text style={styles.micText}>{playing ? "🔊" : "🎤"}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.sendBtn}
+              onPress={handleSend}
+              disabled={!connected || processing}
+            >
+              <Text style={styles.sendText}>➤</Text>
+            </Pressable>
+          </View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
@@ -258,4 +312,43 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   sendText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+  micBtn: {
+    backgroundColor: "rgba(255,255,255,0.08)",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  micText: { fontSize: 18 },
+  recordingBar: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#EF4444",
+    backgroundColor: "rgba(239,68,68,0.08)",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  recordingDot: { color: "#EF4444", fontSize: 14, marginRight: 8 },
+  recordingLabel: { color: "#EF4444", fontSize: 14, fontWeight: "600" },
+  speakingBar: { borderColor: "#3B82F6", backgroundColor: "rgba(59,130,246,0.08)" },
+  speakingDot: { color: "#3B82F6" },
+  speakingLabel: { color: "#3B82F6" },
+  thinkingBar: { borderColor: "#F59E0B", backgroundColor: "rgba(245,158,11,0.08)" },
+  thinkingDot: { color: "#F59E0B" },
+  thinkingLabel: { color: "#F59E0B" },
+  stopBtn: {
+    backgroundColor: "#EF4444",
+    borderRadius: 20,
+    width: 40,
+    height: 40,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
+  },
+  stopText: { color: "#fff", fontSize: 18 },
 });
